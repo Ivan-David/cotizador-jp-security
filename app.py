@@ -4,6 +4,7 @@ import json
 import os
 import base64
 from utils import compute_totals
+import json
 from fpdf import FPDF
 from datetime import datetime, timedelta
 
@@ -121,6 +122,41 @@ if not os.path.exists("logo.png"):
         except Exception:
             pass
 
+def generate_professional_logo(path="logo.png"):
+    """Genera un logo simple y profesional (escudo + texto)."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        W, H = 600, 180
+        img = Image.new('RGB', (W, H), color=(255,255,255))
+        draw = ImageDraw.Draw(img)
+
+        # Draw shield
+        shield_w, shield_h = 220, 150
+        sx = 40
+        sy = (H - shield_h) // 2
+        draw.rounded_rectangle([sx, sy, sx+shield_w, sy+shield_h], radius=20, fill=(11,95,159))
+
+        # Inner symbol (circle)
+        cx = sx + 60
+        cy = sy + shield_h//2
+        draw.ellipse([cx-32, cy-32, cx+32, cy+32], fill=(255,255,255))
+
+        # Company text
+        try:
+            title_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 42)
+            sub_font = ImageFont.truetype("DejaVuSans.ttf", 18)
+        except Exception:
+            title_font = ImageFont.load_default()
+            sub_font = ImageFont.load_default()
+
+        draw.text((sx+250, sy+30), "JP SECURITY", font=title_font, fill=(11,95,159))
+        draw.text((sx+250, sy+85), "Soluciones en seguridad electrónica", font=sub_font, fill=(80,80,80))
+
+        img.save(path)
+        return True
+    except Exception:
+        return False
+
 # Sidebar con información de la empresa y formulario cliente
 with st.sidebar:
     # Company card
@@ -142,6 +178,25 @@ with st.sidebar:
 
     st.markdown("---")
     st.caption("Consejo: mantén el nombre del cliente para poder generar PDF.")
+    st.markdown("---")
+    with st.expander("⚙️ Ajustes del Sistema", expanded=False):
+        iva_val = st.number_input("IVA (porcentaje)", value=float(config.get('iva', IVA_PCT))*100.0, format="%.2f")
+        utilidad_val = st.number_input("Utilidad por defecto (pct)", value=float(config.get('utilidad_default', MARGEN))*100.0, format="%.2f")
+        regen_logo = st.button("Regenerar logo")
+        if st.button("Guardar configuración"):
+            new_conf = {'iva': iva_val/100.0, 'utilidad_default': utilidad_val/100.0}
+            try:
+                with open('config_sistema.json', 'w') as f:
+                    json.dump(new_conf, f, indent=2)
+                st.success('Configuración guardada')
+            except Exception as e:
+                st.error(f'No se pudo guardar: {e}')
+        if regen_logo:
+            ok = generate_professional_logo('logo.png')
+            if ok:
+                st.success('Logo regenerado')
+            else:
+                st.error('No se pudo generar el logo (revisa Pillow)')
 
 # 2. SELECCIÓN PRODUCTOS
 st.divider()
@@ -196,15 +251,22 @@ if 'carrito' in st.session_state and st.session_state.carrito:
         c_qty, c_desc, c_price, c_actions = st.columns([1.2, 4, 2, 2])
         qty_val = c_qty.number_input("", min_value=1, value=int(item.get('cant', 1)), key=f"qty_{idx}")
         c_desc.markdown(f"**{item['desc']}**\n`SKU: {item.get('sku','')}`")
-        c_price.write(f"${item['unit']:,.0f}")
+        # Editable unit price and notes
+        unit_val = c_price.number_input("", min_value=0.0, value=float(item.get('unit', 0.0)), format="%.2f", key=f"unit_{idx}")
+        note_val = c_actions.text_input("Notas", value=item.get('notes',''), key=f"note_{idx}")
 
-        if c_actions.button("Actualizar", key=f"up_{idx}"):
+        btn_update = st.button("Actualizar", key=f"up_{idx}")
+        btn_del = st.button("Eliminar", key=f"del_{idx}")
+
+        if btn_update:
             st.session_state.carrito[idx]['cant'] = int(qty_val)
-            st.session_state.carrito[idx]['total'] = float(st.session_state.carrito[idx]['unit']) * int(qty_val)
-            st.success("Cantidad actualizada")
+            st.session_state.carrito[idx]['unit'] = float(unit_val)
+            st.session_state.carrito[idx]['notes'] = note_val
+            st.session_state.carrito[idx]['total'] = float(unit_val) * int(qty_val)
+            st.success("Ítem actualizado")
             st.experimental_rerun()
 
-        if c_actions.button("Eliminar", key=f"del_{idx}"):
+        if btn_del:
             st.session_state.carrito.pop(idx)
             st.experimental_rerun()
 
