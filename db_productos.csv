@@ -1,11 +1,11 @@
-SKU; Descripcion; Costo_Base; Categoria; Estado
-THC-T120-PC;Cámara Domo 2Mpx 1080P 2.8mm Plástica;47800;Cámaras;Activo
-THC-T120-PS;Cámara Domo 2Mpx Audio Incorporado;65000;Cámaras;Activo
-DS-2CE16D0T;Cámara Bala 2Mpx 1080P Metálica;72000;Cámaras;Activo
+sku;descripcion;costo;categoria;estado
+THC-T120-PC;CÃ¡mara Domo 2Mpx 1080P 2.8mm PlÃ¡stica;47800;CÃ¡maras;Activo
+THC-T120-PS;CÃ¡mara Domo 2Mpx Audio Incorporado;65000;CÃ¡maras;Activo
+DS-2CE16D0T;CÃ¡mara Bala 2Mpx 1080P MetÃ¡lica;72000;CÃ¡maras;Activo
 WD10PURZ;Disco Duro 1TB WD Purple;249990;Almacenamiento;Activo
 WD20PURZ;Disco Duro 2TB WD Purple;329990;Almacenamiento;Activo
-SERV-001;Instalación de Punto de Cámara (Mano de Obra);35000;Servicios;Activo
-SERV-002;Configuración DVR y Red;50000;Servicios;Activo
+SERV-001;InstalaciÃ³n de Punto de CÃ¡mara (Mano de Obra);35000;Servicios;Activo
+SERV-002;ConfiguraciÃ³n DVR y Red;50000;Servicios;Activo
 CONS-001;Caja de paso 10x10;6500;Materiales;Activo
 CONS-002;Video Balun (Par);12000;Materiales;Activo
 CONS-003;Fuente de Poder 12V 1A;15000;Materiales;Activo
