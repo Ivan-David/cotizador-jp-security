@@ -1,0 +1,13 @@
+{
+  "iva": 0.19,
+  "utilidad_default": 0.35,
+  "descuentos": {
+    "nivel_1": {"umbral": 1000000, "pct": 0.03},
+    "nivel_2": {"umbral": 3000000, "pct": 0.05}
+  },
+  "empresa": {
+    "nit": "1003084297-2",
+    "nombre": "JP SECURITY",
+    "contacto": "301 377 88 23"
+  }
+}
