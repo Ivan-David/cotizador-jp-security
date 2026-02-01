@@ -1,5 +1,5 @@
 {
-  "iva": 0.19,
+  "iva": 0,
   "utilidad_default": 0.35,
   "descuentos": {
     "nivel_1": {"umbral": 1000000, "pct": 0.03},
