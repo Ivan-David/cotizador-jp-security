@@ -2,11 +2,13 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import base64
+from utils import compute_totals
 from fpdf import FPDF
 from datetime import datetime, timedelta
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Cotizador JP Security", page_icon="🔒", layout="centered")
+st.set_page_config(page_title="Cotizador JP Security", page_icon="🔒", layout="wide")
 
 # --- CLASE PDF PERSONALIZADA (ESTILO "JP SECURITY") ---
 class PDF(FPDF):
@@ -31,6 +33,18 @@ class PDF(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, 'Garantía de 12 meses en equipos de seguridad electrónica.', 0, 1, 'C')
         self.cell(0, 5, 'La validez de esta oferta es de 7 días calendario.', 0, 1, 'C')
+
+# --- ESTILOS CSS PARA MEJOR UI ---
+st.markdown(
+    """
+    <style>
+    .stApp { font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
+    .company-card { background-color: #0b5f9f; color: white; padding: 12px; border-radius: 8px; }
+    .muted { color: #6c757d; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # --- FUNCIÓN DE CARGA BLINDADA (Como definimos antes) ---
 @st.cache_data
@@ -75,76 +89,141 @@ IVA_PCT = config.get('iva', 0.19)
 MARGEN = config.get('utilidad_default', 0.35)
 
 # --- INTERFAZ ---
-st.title("🔒 Cotizador JP SECURITY")
+st.markdown("# 🔒 Cotizador JP SECURITY")
 
-# 1. FORMULARIO CLIENTE
-with st.expander("📝 Información del Cliente", expanded=True):
-    col1, col2 = st.columns(2)
-    cliente_nombre = col1.text_input("Cliente / Razón Social")
-    cliente_direccion = col2.text_input("Dirección")
-    
-    c_fecha1, c_fecha2 = st.columns(2)
-    fecha_cot = c_fecha1.date_input("Fecha Emisión", datetime.now())
-    # Autocalcular vencimiento a 7 días
-    fecha_vence = c_fecha2.date_input("Fecha Vencimiento", datetime.now() + timedelta(days=7))
+# Si no existe `logo.png`, crear un placeholder desde assets/logo_b64.txt
+if not os.path.exists("logo.png"):
+    # Intentar crear desde base64 incluido
+    try:
+        if os.path.exists("assets/logo_b64.txt"):
+            with open("assets/logo_b64.txt", "r") as f:
+                b64 = f.read().strip()
+            with open("logo.png", "wb") as fo:
+                fo.write(base64.b64decode(b64))
+    except Exception:
+        pass
+
+    # Si sigue sin existir, generar un logo simple con Pillow
+    if not os.path.exists("logo.png"):
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            W, H = 400, 120
+            img = Image.new('RGB', (W, H), color=(11,95,159))
+            draw = ImageDraw.Draw(img)
+            try:
+                fnt = ImageFont.truetype("DejaVuSans-Bold.ttf", 72)
+            except Exception:
+                fnt = ImageFont.load_default()
+            text = "JP"
+            w, h = draw.textsize(text, font=fnt)
+            draw.text(((W-w)/2, (H-h)/2), text, font=fnt, fill=(255,255,255))
+            img.save("logo.png")
+        except Exception:
+            pass
+
+# Sidebar con información de la empresa y formulario cliente
+with st.sidebar:
+    # Company card
+    st.markdown('<div class="company-card">', unsafe_allow_html=True)
+    if os.path.exists("logo.png"):
+        st.image("logo.png", use_column_width=True)
+    st.markdown("**JP SECURITY**  ")
+    st.markdown("NIT 1003084297-2  ")
+    st.markdown("Puerto Libertador  ")
+    st.markdown("Tel: 301 377 88 23  ")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.subheader("📝 Información del Cliente")
+    cliente_nombre = st.text_input("Cliente / Razón Social")
+    cliente_direccion = st.text_input("Dirección")
+    fecha_cot = st.date_input("Fecha Emisión", datetime.now())
+    fecha_vence = st.date_input("Fecha Vencimiento", datetime.now() + timedelta(days=7))
+
+    st.markdown("---")
+    st.caption("Consejo: mantén el nombre del cliente para poder generar PDF.")
 
 # 2. SELECCIÓN PRODUCTOS
 st.divider()
-st.subheader("📦 Items de la Cotización")
-busqueda = st.text_input("🔍 Buscar Producto o Servicio", placeholder="Ej: Cámara, Disco, Instalación...")
+st.subheader("📦 Selección de Productos")
 
-if busqueda:
-    mask = df_productos['descripcion'].str.contains(busqueda, case=False, na=False) | \
-           df_productos['sku'].str.contains(busqueda, case=False, na=False)
-    resultados = df_productos[mask]
-else:
-    resultados = df_productos.head(5)
+# Buscador y resultados en un formulario compacto
+with st.form(key='add_item_form'):
+    cols = st.columns([3,1])
+    busqueda = cols[0].text_input("🔍 Buscar producto o servicio", placeholder="Ej: Cámara, Disco, Instalación...")
+    mostrar = cols[1].checkbox("Mostrar todos", value=False)
 
-if not resultados.empty:
-    lista_display = [f"{r['descripcion']} | ${r['costo']:,.0f}" for i,r in resultados.iterrows()]
-    seleccion = st.selectbox("Seleccionar Item:", lista_display)
-    
-    if seleccion:
-        desc_raw = seleccion.split(" | $")[0]
-        item_data = resultados[resultados['descripcion'] == desc_raw].iloc[0]
-        
+    # Filtrado
+    if busqueda:
+        mask = df_productos['descripcion'].str.contains(busqueda, case=False, na=False) | \
+               df_productos['sku'].str.contains(busqueda, case=False, na=False)
+        resultados = df_productos[mask]
+    elif mostrar:
+        resultados = df_productos
+    else:
+        resultados = df_productos.head(8)
+
+    opciones = [f"{r['sku']} — {r['descripcion']} — ${r['costo']:,.0f}" for i,r in resultados.iterrows()]
+    seleccion = st.selectbox("Seleccionar item", opciones)
+    cantidad = st.number_input("Cantidad", min_value=1, max_value=1000, value=1)
+    agregar = st.form_submit_button("➕ Agregar al carrito")
+
+    if agregar and seleccion:
+        clave = seleccion.split(' — ')[0]
+        item_data = resultados[resultados['sku'] == clave].iloc[0]
         precio_sugerido = item_data['costo'] * (1 + MARGEN)
-        
-        c1, c2, c3 = st.columns([3, 2, 2])
-        c1.caption(f"Ref: {item_data['sku']}")
-        c2.metric("Precio Unitario", f"${precio_sugerido:,.0f}")
-        cantidad = c3.number_input("Cantidad", 1, 1000, 1)
-        
-        if st.button("➕ Agregar a la Lista", type="primary"):
+        # Validación: cliente debe existir antes de agregar
+        if not cliente_nombre or not cliente_nombre.strip():
+            st.warning("Ingresa el nombre del cliente en la barra lateral antes de agregar items.")
+        else:
             if 'carrito' not in st.session_state: st.session_state.carrito = []
             st.session_state.carrito.append({
-                'cant': cantidad,
+                'cant': int(cantidad),
                 'desc': item_data['descripcion'],
-                'unit': precio_sugerido,
-                'total': precio_sugerido * cantidad
+                'sku': item_data['sku'],
+                'unit': float(precio_sugerido),
+                'total': float(precio_sugerido) * int(cantidad)
             })
-            st.success("Item agregado")
+            st.success("Item agregado al carrito")
 
 # 3. TABLA Y PDF
 st.divider()
 if 'carrito' in st.session_state and st.session_state.carrito:
-    # Mostrar tabla en pantalla
+    # Mostrar lista de items con opciones de editar/eliminar
+    st.subheader("🛒 Carrito")
+    for idx, item in enumerate(list(st.session_state.carrito)):
+        # Permitir editar cantidad y eliminar
+        c_qty, c_desc, c_price, c_actions = st.columns([1.2, 4, 2, 2])
+        qty_val = c_qty.number_input("", min_value=1, value=int(item.get('cant', 1)), key=f"qty_{idx}")
+        c_desc.markdown(f"**{item['desc']}**\n`SKU: {item.get('sku','')}`")
+        c_price.write(f"${item['unit']:,.0f}")
+
+        if c_actions.button("Actualizar", key=f"up_{idx}"):
+            st.session_state.carrito[idx]['cant'] = int(qty_val)
+            st.session_state.carrito[idx]['total'] = float(st.session_state.carrito[idx]['unit']) * int(qty_val)
+            st.success("Cantidad actualizada")
+            st.experimental_rerun()
+
+        if c_actions.button("Eliminar", key=f"del_{idx}"):
+            st.session_state.carrito.pop(idx)
+            st.experimental_rerun()
+
     df_cart = pd.DataFrame(st.session_state.carrito)
-    st.dataframe(df_cart, use_container_width=True, hide_index=True)
     
-    # Cálculos
-    subtotal = df_cart['total'].sum()
-    desc_factor = 0.05 if subtotal > 3000000 else (0.03 if subtotal > 1000000 else 0)
-    monto_desc = subtotal * desc_factor
-    base_iva = subtotal - monto_desc
-    monto_iva = base_iva * IVA_PCT
-    total_neto = base_iva + monto_iva
+    # Cálculos (externalizados para facilitar pruebas)
+    totals = compute_totals(st.session_state.carrito, IVA_PCT)
+    subtotal = totals['subtotal']
+    monto_desc = totals['monto_desc']
+    base_iva = totals['base_iva']
+    monto_iva = totals['monto_iva']
+    total_neto = totals['total_neto']
     
-    col_res1, col_res2 = st.columns(2)
+    col_res1, col_res2 = st.columns([2,1])
     with col_res1:
-        st.write(f"Subtotal: **${subtotal:,.0f}**")
-        if monto_desc > 0: st.write(f"Descuento: **-${monto_desc:,.0f}**")
-        st.write(f"IVA ({IVA_PCT*100:.0f}%): **${monto_iva:,.0f}**")
+        st.markdown(f"- **Subtotal:** ${subtotal:,.0f}")
+        if monto_desc > 0: st.markdown(f"- **Descuento:** -${monto_desc:,.0f}")
+        st.markdown(f"- **Base IVA:** ${base_iva:,.0f}")
+        st.markdown(f"- **IVA ({IVA_PCT*100:.0f}%):** ${monto_iva:,.0f}")
     with col_res2:
         st.metric("TOTAL A PAGAR", f"${total_neto:,.0f}")
 
@@ -168,7 +247,8 @@ if 'carrito' in st.session_state and st.session_state.carrito:
         # COLUMNA DERECHA (Datos Cotización)
         pdf.set_xy(110, top_y)
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(90, 8, "COTIZACIÓN NO CT0076", 0, 1, 'R') # Folio automático o fijo
+        folio = f"CT{datetime.now().strftime('%y%m%d%H%M%S')}"
+        pdf.cell(90, 8, f"COTIZACIÓN NO {folio}", 0, 1, 'R')
         
         pdf.set_xy(110, pdf.get_y())
         pdf.set_font("Arial", 'B', 9)
@@ -233,14 +313,21 @@ if 'carrito' in st.session_state and st.session_state.carrito:
         pdf.cell(40, 8, "TOTAL", 0, 0, 'R')
         pdf.cell(30, 8, f"${total_neto:,.0f}", 1, 1, 'R')
         
+        # Pie con firma
+        pdf.ln(10)
+        pdf.set_font('Arial', '', 9)
+        pdf.multi_cell(0, 5, 'Atentamente,\nJP SECURITY\nTel: 301 377 88 23')
         return pdf.output(dest='S').encode('latin-1', 'replace')
 
     if st.button("📄 Descargar Cotización PDF", type="primary"):
-        if cliente_nombre:
+        # Validaciones finales
+        if not cliente_nombre or not cliente_nombre.strip():
+            st.warning("⚠️ Debes ingresar el nombre del cliente en la barra lateral.")
+        elif fecha_vence < fecha_cot:
+            st.warning("⚠️ La fecha de vencimiento no puede ser anterior a la fecha de emisión.")
+        else:
             pdf_bytes = generar_pdf_final()
             st.download_button("📥 Guardar PDF", pdf_bytes, "Cotizacion_JP_Security.pdf", "application/pdf")
-        else:
-            st.warning("⚠️ Debes ingresar el nombre del cliente primero.")
 
     if st.button("🗑️ Limpiar Todo"):
         st.session_state.carrito = []

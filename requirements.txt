@@ -1,3 +1,8 @@
 pandas
 fpdf
 openpyxl
+
+# UI
+streamlit
+pytest
+pillow
