@@ -2,167 +2,173 @@ import streamlit as st
 import pandas as pd
 import json
 from fpdf import FPDF
-from datetime import datetime, timedelta
+from datetime import datetime
 
-# --- CONFIGURACIÓN E INICIO ---
-st.set_page_config(page_title="Cotizador JP Security", page_icon="🔒")
+# --- CONFIGURACIÓN DE LA PÁGINA ---
+st.set_page_config(page_title="Cotizador JP Security", page_icon="🔒", layout="centered")
 
-# Función para cargar datos
+# --- FUNCIÓN DE CARGA DE DATOS (BLINDADA) ---
 @st.cache_data
 def load_data():
     try:
-        # Agregamos encoding='latin-1' para que acepte tildes y eñes sin fallar
+        # 1. Cargar CSV con encoding 'latin-1' para soportar tildes y ñ
         df = pd.read_csv('db_productos.csv', encoding='latin-1')
+        
+        # 2. Normalizar nombres de columnas (Quitar espacios y pasar a minúsculas)
+        # Esto evita errores si en el Excel pusiste "Descripcion " o "COSTO"
+        df.columns = df.columns.str.strip().str.lower()
+        
+        # 3. Cargar Configuración
         with open('config_sistema.json', 'r') as f:
             conf = json.load(f)
+            
         return df, conf
-    except FileNotFoundError:
-        st.error("Error: No se encuentran los archivos CSV o JSON.")
+        
+    except FileNotFoundError as e:
+        st.error(f"Error crítico: No se encuentra el archivo. Detalle: {e}")
+        return pd.DataFrame(), {}
+    except Exception as e:
+        st.error(f"Error inesperado cargando datos: {e}")
         return pd.DataFrame(), {}
 
+# Carga inicial
 df_productos, config = load_data()
 
+# Validación de seguridad: Si falla la carga, detenemos la app
 if df_productos.empty:
+    st.warning("⚠️ No se pudieron cargar los productos. Revisa tu archivo CSV en GitHub.")
     st.stop()
 
-# --- LÓGICA DE NEGOCIO ---
-IVA = config['iva']
-MARGEN = config['utilidad_default']
+# --- CONSTANTES DE NEGOCIO ---
+try:
+    IVA = config.get('iva', 0.19)
+    MARGEN = config.get('utilidad_default', 0.35)
+    EMPRESA = config.get('empresa', {})
+except:
+    IVA = 0.19
+    MARGEN = 0.35
+    EMPRESA = {"nombre": "JP SECURITY"}
 
-# --- INTERFAZ DE USUARIO ---
-st.title("🔒 JP SECURITY - Cotizador")
-st.markdown(f"**Gestión de Cotizaciones en Campo** | Margen: `{MARGEN*100}%`")
+# --- INTERFAZ GRÁFICA ---
+st.title("🔒 JP SECURITY")
+st.markdown(f"**Sistema de Cotización Móvil** | Margen Aplicado: `{MARGEN*100:.0f}%`")
 
-# 1. Datos del Cliente
-with st.container():
-    st.subheader("1. Datos del Cliente")
+# SECCIÓN 1: DATOS DEL CLIENTE
+with st.expander("👤 1. Datos del Cliente", expanded=True):
     col1, col2 = st.columns(2)
-    cliente = col1.text_input("Cliente / Empresa")
-    nit = col2.text_input("NIT / Cédula")
-    direccion = st.text_input("Dirección / Ubicación")
+    cliente = col1.text_input("Nombre / Razón Social")
+    nit_cliente = col2.text_input("NIT / Cédula")
+    direccion = st.text_input("Dirección del proyecto")
 
-# 2. Selección de Productos
+# SECCIÓN 2: BUSCADOR DE PRODUCTOS
 st.divider()
-st.subheader("2. Agregar Productos")
+st.subheader("📦 2. Selección de Equipos")
 
-# Buscador
-busqueda = st.text_input("🔍 Buscar equipo (ej: camara, disco, 2mp)", "")
+# Buscador inteligente
+busqueda = st.text_input("🔍 Buscar (ej: Camara, Disco, 2MP, Servicio)", "")
 
 if busqueda:
-    resultados = df_productos[df_productos['descripcion'].str.contains(busqueda, case=False, na=False)]
+    # Filtramos buscando en la columna 'descripcion' (ya normalizada a minúsculas)
+    # na=False evita errores si hay celdas vacías
+    resultados = df_productos[
+        df_productos['descripcion'].str.contains(busqueda, case=False, na=False) | 
+        df_productos['sku'].str.contains(busqueda, case=False, na=False)
+    ]
 else:
-    resultados = df_productos.head(5)
+    resultados = df_productos.head(10) # Mostrar los primeros 10 si no hay búsqueda
 
-producto_sel = st.selectbox("Seleccione un item:", resultados['descripcion'].tolist())
+# Selector visual
+opciones = results_list = resultados.apply(
+    lambda x: f"{x['descripcion']} (Base: ${x['costo']:,.0f})", axis=1
+).tolist()
 
-# Obtener datos del item seleccionado
-if producto_sel:
-    item_data = df_productos[df_productos['descripcion'] == producto_sel].iloc[0]
-    precio_venta_sugerido = item_data['costo'] * (1 + MARGEN)
+producto_seleccionado_txt = st.selectbox("Resultados:", opciones)
 
-    c1, c2, c3 = st.columns([2,2,1])
-    c1.metric("Costo Base", f"${item_data['costo']:,.0f}")
-    c2.metric("Precio Venta (+Margen)", f"${precio_venta_sugerido:,.0f}")
+# Lógica de Agregado
+if producto_seleccionado_txt:
+    # Recuperamos el item original basado en el texto seleccionado
+    idx = opciones.index(producto_seleccionado_txt)
+    item_data = resultados.iloc[idx]
+    
+    # Cálculo de Precio
+    precio_venta = item_data['costo'] * (1 + MARGEN)
+    
+    c1, c2, c3 = st.columns([2, 2, 1])
+    c1.info(f"SKU: {item_data['sku']}")
+    c2.success(f"Precio Venta: ${precio_venta:,.0f}")
+    cantidad = c3.number_input("Cantidad", min_value=1, value=1)
 
-    cantidad = c3.number_input("Cant.", min_value=1, value=1)
-
-    if st.button("➕ Agregar a la Cotización"):
+    if st.button("➕ Agregar Item", use_container_width=True):
         if 'carrito' not in st.session_state:
             st.session_state.carrito = []
-
+            
         st.session_state.carrito.append({
             "sku": item_data['sku'],
             "descripcion": item_data['descripcion'],
             "cantidad": cantidad,
-            "precio_unit": precio_venta_sugerido,
-            "total": precio_venta_sugerido * cantidad
+            "precio_unit": precio_venta,
+            "total": precio_venta * cantidad
         })
-        st.success("Item agregado")
+        st.toast("✅ Item agregado correctamente")
 
-# 3. Resumen y PDF
+# SECCIÓN 3: CARRITO Y CIERRE
 st.divider()
-st.subheader("3. Resumen de Propuesta")
+st.subheader("📋 3. Resumen y Generación")
 
 if 'carrito' in st.session_state and len(st.session_state.carrito) > 0:
+    # Convertimos carrito a DataFrame para visualizar
     df_cart = pd.DataFrame(st.session_state.carrito)
-    st.dataframe(df_cart, use_container_width=True)
+    
+    # Mostrar tabla simple (ocultamos columnas técnicas si queremos)
+    st.dataframe(
+        df_cart[['cantidad', 'descripcion', 'precio_unit', 'total']], 
+        use_container_width=True,
+        hide_index=True
+    )
+    
+    # --- CÁLCULOS FINALES ---
+    subtotal_bruto = df_cart['total'].sum()
+    
+    # Regla de Descuentos (JTS Catalog Logic)
+    descuento_pct = 0.0
+    if subtotal_bruto > 3000000:
+        descuento_pct = 0.05
+    elif subtotal_bruto > 1000000:
+        descuento_pct = 0.03
+        
+    monto_descuento = subtotal_bruto * descuento_pct
+    subtotal_neto = subtotal_bruto - monto_descuento
+    monto_iva = subtotal_neto * IVA
+    total_final = subtotal_neto + monto_iva
+    
+    # Panel de Totales
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        st.markdown(f"**Subtotal:** ${subtotal_bruto:,.0f}")
+        if descuento_pct > 0:
+            st.markdown(f"**Descuento ({descuento_pct*100:.0f}%):** -${monto_descuento:,.0f}")
+        st.markdown(f"**IVA ({IVA*100:.0f}%):** ${monto_iva:,.0f}")
+    
+    with col_t2:
+        st.metric(label="TOTAL A PAGAR", value=f"${total_final:,.0f}")
 
-    # Cálculos Finales
-    subtotal = df_cart['total'].sum()
-
-    # Descuentos Automáticos
-    descuento_pct = 0
-    if subtotal > 3000000: descuento_pct = 0.05
-    elif subtotal > 1000000: descuento_pct = 0.03
-
-    valor_descuento = subtotal * descuento_pct
-    subtotal_neto = subtotal - valor_descuento
-    valor_iva = subtotal_neto * IVA
-    total_final = subtotal_neto + valor_iva
-
-    # Mostrar Totales
-    c_tot1, c_tot2 = st.columns(2)
-    c_tot1.markdown(f"**Subtotal:** ${subtotal:,.0f}")
-    c_tot1.markdown(f"**Descuento ({descuento_pct*100}%):** -${valor_descuento:,.0f}")
-    c_tot1.markdown(f"**IVA ({IVA*100}%):** ${valor_iva:,.0f}")
-    c_tot2.metric("TOTAL A PAGAR", f"${total_final:,.0f}")
-
-    # --- GENERADOR PDF ---
-    def generar_pdf():
+    # --- GENERADOR DE PDF ---
+    def crear_pdf():
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", size=12)
-
-        # Encabezado
+        
+        # 1. Encabezado
         pdf.set_font("Arial", 'B', 16)
-        pdf.cell(200, 10, txt=config['empresa']['nombre'], ln=1, align='C')
+        pdf.cell(0, 10, EMPRESA.get('nombre', 'JP SECURITY'), ln=True, align='C')
         pdf.set_font("Arial", size=10)
-        pdf.cell(200, 10, txt=f"NIT: {config['empresa']['nit']} | Tel: {config['empresa']['contacto']}", ln=1, align='C')
-
-        pdf.line(10, 30, 200, 30)
+        pdf.cell(0, 5, f"NIT: {EMPRESA.get('nit', '')}", ln=True, align='C')
+        pdf.cell(0, 5, f"{EMPRESA.get('direccion', '')} | Tel: {EMPRESA.get('telefono', '')}", ln=True, align='C')
         pdf.ln(10)
-
-        # Cliente
-        pdf.cell(200, 10, txt=f"Cliente: {cliente}", ln=1)
-        pdf.cell(200, 10, txt=f"Fecha: {datetime.now().strftime('%Y-%m-%d')}", ln=1)
-
-        # Tabla
-        pdf.ln(10)
+        
+        # 2. Info Cliente
         pdf.set_font("Arial", 'B', 10)
-        pdf.cell(100, 10, "Descripción", 1)
-        pdf.cell(30, 10, "Cant", 1)
-        pdf.cell(30, 10, "Unitario", 1)
-        pdf.cell(30, 10, "Total", 1)
-        pdf.ln()
-
-        pdf.set_font("Arial", size=9)
-        for item in st.session_state.carrito:
-            pdf.cell(100, 10, item['descripcion'][:45], 1) # Recortar nombre largo
-            pdf.cell(30, 10, str(item['cantidad']), 1)
-            pdf.cell(30, 10, f"${item['precio_unit']:,.0f}", 1)
-            pdf.cell(30, 10, f"${item['total']:,.0f}", 1)
-            pdf.ln()
-
-        # Totales
-        pdf.ln(5)
-        pdf.cell(160, 10, "TOTAL A PAGAR (IVA Incluido)", 0, 0, 'R')
-        pdf.cell(30, 10, f"${total_final:,.0f}", 1, 1, 'C')
-
-        return pdf.output(dest='S').encode('latin-1')
-
-    if st.button("📄 Generar PDF Final"):
-        if cliente:
-            pdf_bytes = generar_pdf()
-            st.download_button(
-                label="📥 Descargar Cotización PDF",
-                data=pdf_bytes,
-                file_name=f"Cotizacion_{cliente}.pdf",
-                mime="application/pdf"
-            )
-        else:
-            st.warning("Por favor ingrese el nombre del cliente arriba.")
-
-# Botón Reset
-if st.button("Borrar Todo / Nueva Cotización"):
-    st.session_state.carrito = []
-    st.rerun()
+        pdf.cell(100, 8, f"CLIENTE: {cliente}", 0, 0)
+        pdf.cell(0, 8, f"FECHA: {datetime.now().strftime('%Y-%m-%d')}", 0, 1)
+        pdf.cell(100, 8, f"NIT/CC: {nit_cliente}", 0, 0)
+        pdf.cell(0, 8, f"VENCE: {(datetime.now() + pd.Timedelta(days=7)).strftime('%Y-%m-%d')}", 0, 1)
+        pdf
