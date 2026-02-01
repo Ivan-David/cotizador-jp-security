@@ -1,12 +1,46 @@
-sku;descripcion;costo;categoria;estado
-THC-T120-PC;Cámara Domo 2Mpx 1080P 2.8mm Plástica;47800;Cámaras;Activo
-THC-T120-PS;Cámara Domo 2Mpx Audio Incorporado;65000;Cámaras;Activo
-DS-2CE16D0T;Cámara Bala 2Mpx 1080P Metálica;72000;Cámaras;Activo
-WD10PURZ;Disco Duro 1TB WD Purple;249990;Almacenamiento;Activo
-WD20PURZ;Disco Duro 2TB WD Purple;329990;Almacenamiento;Activo
-SERV-001;Instalación de Punto de Cámara (Mano de Obra);35000;Servicios;Activo
-SERV-002;Configuración DVR y Red;50000;Servicios;Activo
-CONS-001;Caja de paso 10x10;6500;Materiales;Activo
-CONS-002;Video Balun (Par);12000;Materiales;Activo
-CONS-003;Fuente de Poder 12V 1A;15000;Materiales;Activo
-CAB-001;Cable UTP Cat5e Interior (Metro);1800;Cableado;Activo
+sku,descripcion,costo,categoria,marca,estado
+THC-B129-P,Cámara Bala 2Mpx ColorVu HiLook Plástica,49250,Cámaras,HiLook,Activo
+THC-B129-M,Cámara Bala 2Mpx ColorVu HiLook Metálica,69100,Cámaras,HiLook,Activo
+THC-T129-P,Cámara Domo 2Mpx ColorVu HiLook Plástica,49250,Cámaras,HiLook,Activo
+THC-T129-M,Cámara Domo 2Mpx ColorVu HiLook Metálica,69100,Cámaras,HiLook,Activo
+THC-B120-PC,Cámara Bala 2Mpx 1080P Plástica Exterior,47800,Cámaras,HiLook,Activo
+THC-B120-MC,Cámara Bala 2Mpx 1080P Metálica Exterior,69100,Cámaras,HiLook,Activo
+THC-T120-PC,Cámara Domo 2Mpx 1080P Plástica Interior,47800,Cámaras,HiLook,Activo
+THC-T120-M,Cámara Domo 2Mpx 1080P Metálica Interior,72500,Cámaras,HiLook,Activo
+THC-T120-PS,Cámara Domo 2Mpx Audio Incorporado,65400,Cámaras,HiLook,Activo
+THC-B120-PS,Cámara Bala 2Mpx Audio Incorporado,65400,Cámaras,HiLook,Activo
+DVR-204G-M1,DVR 4 Canales 1080P Lite H.264+,144200,Grabación,HiLook,Activo
+DVR-208G-M1,DVR 8 Canales 1080P Lite H.264+,179200,Grabación,HiLook,Activo
+DVR-216G-M1,DVR 16 Canales 1080P Lite H.264+,305800,Grabación,HiLook,Activo
+THC-B320-VF,Cámara Bala Varifocal 2.8-12mm Metálica,141100,Cámaras,HiLook,Activo
+THC-T320-VF,Cámara Domo Varifocal 2.8-12mm Metálica,141100,Cámaras,HiLook,Activo
+PTZ-T4225I-DE,Cámara PTZ 25X Zoom 2Mpx 1080P,937300,Cámaras,Hikvision,Activo
+THC-B150-M,Cámara Bala 5Mpx Metálica Exterior,75500,Cámaras,HiLook,Activo
+THC-T150-M,Cámara Domo 5Mpx Metálica Exterior,86500,Cámaras,HiLook,Activo
+THC-B150-P,Cámara Bala 5Mpx Plástica Exterior,75500,Cámaras,HiLook,Activo
+THC-T150-P,Cámara Domo 5Mpx Plástica Interior,89900,Cámaras,HiLook,Activo
+DVR-204Q-M1,DVR 4CH 5MP AcuSense 3K,220900,Grabación,HiLook,Activo
+DVR-208Q-M1,DVR 8CH 5MP AcuSense 3K,334900,Grabación,HiLook,Activo
+DVR-216Q-M1,DVR 16CH 5MP AcuSense 3K,543900,Grabación,HiLook,Activo
+EZVIZ-CS-H9C,Cámara Dual WiFi Robótica 5MP 3K,376900,Cámaras WiFi,Ezviz,Activo
+WD32MSD,MicroSD WD Purple 32GB Clase 10,29990,Almacenamiento,Western Digital,Activo
+WD64MSD,MicroSD WD Purple 64GB Clase 10,44990,Almacenamiento,Western Digital,Activo
+WD128MSD,MicroSD WD Purple 128GB Clase 10,69990,Almacenamiento,Western Digital,Activo
+WD10EZEX,Disco Duro 1TB WD Blue PC,199990,Almacenamiento,Western Digital,Activo
+WD10PURZ,Disco Duro 1TB WD Purple Vigilancia,249990,Almacenamiento,Western Digital,Activo
+WD20PURZ,Disco Duro 2TB WD Purple Vigilancia,329990,Almacenamiento,Western Digital,Activo
+WD42PURZ,Disco Duro 4TB WD Purple Vigilancia,469990,Almacenamiento,Western Digital,Activo
+WD63PURZ,Disco Duro 6TB WD Purple Vigilancia,699990,Almacenamiento,Western Digital,Activo
+SERV-INST-CAM,Instalación de cámara (Mano de Obra),50000,Servicios,JP Security,Activo
+SERV-CONF-DVR,Configuración DVR y Red,50000,Servicios,JP Security,Activo
+SERV-DTO-ELEC,Punto Eléctrico (Mano de Obra),30000,Servicios,JP Security,Activo
+SERV-ACOND,Acondicionamiento de alimentación,20000,Servicios,JP Security,Activo
+MAT-CAJA-10x10,Caja Plástica de Paso 10x10,7000,Materiales,Genérico,Activo
+MAT-CANALETA,Canaleta Plástica x 2mts,8000,Materiales,Genérico,Activo
+MAT-VIDEOBALUN,Video Balun (Par),12000,Materiales,Hikvision/Genérico,Activo
+MAT-FUENTE-1A,Fuente de Poder 12V 1A,15000,Materiales,Genérico,Activo
+MAT-TOMA-DBL,Toma corriente doble encauchetado,12000,Materiales,Genérico,Activo
+MAT-CABLE-UTP,Cable UTP Cat5e Interior (Metro),1800,Cableado,Genérico,Activo
+MAT-CABLE-DUP,Cable Duplex Calibre 12 (Metro),2500,Cableado,Genérico,Activo
+ACC-BRAZO,Brazo soporte para cámara,25000,Accesorios,Genérico,Activo
+ACC-EZVIZ-C6N,Cámara Ezviz C6N 1080p WiFi,110000,Cámaras WiFi,Ezviz,Activo
