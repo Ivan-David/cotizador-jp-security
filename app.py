@@ -11,7 +11,8 @@ st.set_page_config(page_title="Cotizador JP Security", page_icon="🔒")
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv('db_productos.csv')
+        # Agregamos encoding='latin-1' para que acepte tildes y eñes sin fallar
+        df = pd.read_csv('db_productos.csv', encoding='latin-1')
         with open('config_sistema.json', 'r') as f:
             conf = json.load(f)
         return df, conf
